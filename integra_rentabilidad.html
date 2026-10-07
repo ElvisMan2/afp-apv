@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rentabilidad AFP Integra</title>
+  <style>
+    :root {
+      --bg-1: #f4f9ff;
+      --bg-2: #e6f1ff;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --brand: #0b5fff;
+      --ok: #0f766e;
+      --warn: #b45309;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at -10% -10%, #dbeafe 0%, transparent 60%),
+        radial-gradient(1000px 500px at 110% 0%, #bfdbfe 0%, transparent 55%),
+        linear-gradient(140deg, var(--bg-1), var(--bg-2));
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .wrap {
+      width: min(860px, 100%);
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 24px 24px 8px;
+      background: linear-gradient(135deg, #0b5fff, #1d4ed8);
+      color: #fff;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2.2vw, 1.8rem);
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      margin: 8px 0 14px;
+      opacity: 0.92;
+      font-size: 0.95rem;
+    }
+
+    .content {
+      padding: 20px 24px 28px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(140px, 220px));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.87rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(11, 95, 255, 0.15);
+    }
+
+    .result {
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      padding: 16px;
+      background: #f8fbff;
+      display: grid;
+      gap: 10px;
+    }
+
+    .kpi {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      border-bottom: 1px dashed #dbeafe;
+      padding-bottom: 8px;
+    }
+
+    .kpi:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .kpi .name {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .kpi .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--ok);
+    }
+
+    .kpi .value.neg {
+      color: var(--warn);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .chartWrap {
+      margin-top: 18px;
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      background: #ffffff;
+      padding: 12px;
+    }
+
+    .analysisWrap {
+      margin-top: 16px;
+      border: 1px solid #cfe1ff;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #f8fbff 0%, #f3f8ff 100%);
+      padding: 14px;
+    }
+
+    .analysisTitle {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+      color: #1e3a8a;
+      font-weight: 700;
+    }
+
+    .analysisText {
+      margin: 0;
+      color: #334155;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .analysisList {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: #334155;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .chartTitle {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .barsSvg {
+      width: 100%;
+      height: 320px;
+      display: block;
+    }
+
+    .axisText {
+      font-size: 10px;
+      fill: #64748b;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .barValue {
+      font-size: 8.5px;
+      fill: #334155;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-weight: 600;
+    }
+
+    .gridLine {
+      stroke: #e2e8f0;
+      stroke-width: 1;
+    }
+
+    @media (max-width: 640px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1>AFP Integra - Consulta de Rentabilidad</h1>
+      <p>Fuente: valor cuota diario del Fondo 2. Los calculos se construyen unicamente desde este archivo.</p>
+    </section>
+
+    <section class="content">
+      <div class="controls">
+        <div class="field">
+          <label for="startMonthSelect">Mes inicio</label>
+          <select id="startMonthSelect"></select>
+        </div>
+        <div class="field">
+          <label for="startYearSelect">Ano inicio</label>
+          <select id="startYearSelect"></select>
+        </div>
+        <div class="field">
+          <label for="endMonthSelect">Mes fin</label>
+          <select id="endMonthSelect"></select>
+        </div>
+        <div class="field">
+          <label for="endYearSelect">Ano fin</label>
+          <select id="endYearSelect"></select>
+        </div>
+      </div>
+
+      <article class="result" id="resultBox" aria-live="polite">
+        <div class="kpi">
+          <span class="name">Rentabilidad anualizada estimada del periodo</span>
+          <span class="value" id="periodAnnualized">-</span>
+        </div>
+        <div class="kpi">
+          <span class="name">Rentabilidad total real del periodo</span>
+          <span class="value" id="periodTotalReal">-</span>
+        </div>
+        <div class="kpi">
+          <span class="name">Rentabilidad neta estimada al retirar (SUNAT 5% sobre ganancia)</span>
+          <span class="value" id="periodTotalNetAfterTax">-</span>
+        </div>
+      </article>
+
+      <p class="status" id="status">Cargando datos...</p>
+
+      <section class="analysisWrap" aria-labelledby="analysisTitle">
+        <h2 class="analysisTitle" id="analysisTitle">Interpretacion correcta del CSV</h2>
+        <p class="analysisText">
+          Esta pagina usa solo el valor cuota diario del Fondo 2. Se toma el ultimo valor disponible de cada mes para calcular rentabilidad mensual y su equivalente anual (TEA).
+        </p>
+        <ol class="analysisList">
+          <li>Se consolida una serie mensual usando el ultimo valor cuota de cada mes.</li>
+          <li>La rentabilidad mensual se calcula como variacion entre cierres mensuales consecutivos.</li>
+          <li>La TEA mensual se obtiene con la formula (1 + r_mensual)^12 - 1.</li>
+          <li>La rentabilidad anual por ano se compone con los meses disponibles en ese ano.</li>
+        </ol>
+      </section>
+
+      <section class="chartWrap">
+        <h2 class="chartTitle">TEA mensual estimada desde valor cuota - ultimos 5 anos (Integra vs Habitat)</h2>
+        <svg id="barsChart" class="barsSvg" viewBox="0 0 900 320" role="img" aria-label="Grafico de barras de TEA mensual estimada de AFP Integra en los ultimos 5 anos"></svg>
+      </section>
+
+      <section class="chartWrap">
+        <h2 class="chartTitle">TEA mensual estimada desde valor cuota - ultimos 12 meses (Integra vs Habitat)</h2>
+        <svg id="last12BarsChart" class="barsSvg" viewBox="0 0 900 320" role="img" aria-label="Grafico de barras de TEA mensual estimada de AFP Integra en los ultimos 12 meses"></svg>
+      </section>
+
+      <section class="chartWrap">
+        <h2 class="chartTitle">Rentabilidad anual compuesta por ano (Integra vs Habitat)</h2>
+        <svg id="annualBarsChart" class="barsSvg" viewBox="0 0 900 320" role="img" aria-label="Grafico de barras de rentabilidad anual compuesta por ano de AFP Integra"></svg>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const CSV_PATH_INTEGRA = "valor_cuota_integra.csv";
+    const CSV_PATH_HABITAT = "valor_cuota_habitat.csv";
+    const FUND_STYLES = {
+      integra: { name: "Integra", positive: "#0b5fff", negative: "#1d4ed8" },
+      habitat: { name: "Habitat", positive: "#f97316", negative: "#c2410c" }
+    };
+
+    const monthNames = {
+      "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+      "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+      "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+    };
+
+    const startMonthSelect = document.getElementById("startMonthSelect");
+    const startYearSelect = document.getElementById("startYearSelect");
+    const endMonthSelect = document.getElementById("endMonthSelect");
+    const endYearSelect = document.getElementById("endYearSelect");
+    const statusEl = document.getElementById("status");
+
+    const periodAnnualizedEl = document.getElementById("periodAnnualized");
+    const periodTotalRealEl = document.getElementById("periodTotalReal");
+    const periodTotalNetAfterTaxEl = document.getElementById("periodTotalNetAfterTax");
+    const barsChart = document.getElementById("barsChart");
+    const last12BarsChart = document.getElementById("last12BarsChart");
+    const annualBarsChart = document.getElementById("annualBarsChart");
+
+    let rows = [];
+    let habitatRows = [];
+
+    function parseCsvLine(line) {
+      const out = [];
+      let curr = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            curr += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === "," && !inQuotes) {
+          out.push(curr);
+          curr = "";
+        } else {
+          curr += ch;
+        }
+      }
+      out.push(curr);
+      return out;
+    }
+
+    function parseCsv(text) {
+      const lines = text.replace(/\r/g, "").trim().split("\n");
+      if (!lines.length) return [];
+
+      const headers = parseCsvLine(lines[0]);
+      const data = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCsvLine(lines[i]);
+        const row = {};
+        headers.forEach((h, idx) => {
+          row[h] = (values[idx] || "").trim();
+        });
+        data.push(row);
+      }
+      return data;
+    }
+
+    function buildFilters(data) {
+      const years = Array.from(new Set(data.map(r => r.year))).sort((a, b) => Number(a) - Number(b));
+      const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+
+      startYearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+      endYearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join("");
+      startMonthSelect.innerHTML = months.map(m => `<option value="${m}">${monthNames[m]}</option>`).join("");
+      endMonthSelect.innerHTML = months.map(m => `<option value="${m}">${monthNames[m]}</option>`).join("");
+
+      const latest = data[data.length - 1];
+      const earliest = data[0];
+      if (latest) {
+        endYearSelect.value = latest.year;
+        endMonthSelect.value = latest.month;
+      }
+      if (earliest) {
+        startYearSelect.value = earliest.year;
+        startMonthSelect.value = earliest.month;
+      }
+    }
+
+    function colorize(el, value) {
+      const n = Number(value);
+      el.classList.remove("neg");
+      if (!Number.isNaN(n) && n < 0) {
+        el.classList.add("neg");
+      }
+    }
+
+    function ymKey(year, month) {
+      return Number(`${year}${month}`);
+    }
+
+    function renderLegend(svg, w, labels) {
+      const startX = w - 260;
+      const y = 16;
+      const blockW = 12;
+      const blockH = 12;
+      let x = startX;
+      let out = "";
+
+      for (const l of labels) {
+        out += `<rect x="${x}" y="${y}" width="${blockW}" height="${blockH}" fill="${l.color}" rx="2"></rect>`;
+        out += `<text class="axisText" x="${x + blockW + 6}" y="${y + 10}">${l.name}</text>`;
+        x += 100;
+      }
+
+      return svg + out;
+    }
+
+    function renderPeriodAnnualized() {
+      const sy = startYearSelect.value;
+      const sm = startMonthSelect.value;
+      const ey = endYearSelect.value;
+      const em = endMonthSelect.value;
+
+      const startKey = ymKey(sy, sm);
+      const endKey = ymKey(ey, em);
+
+      if (startKey > endKey) {
+        periodAnnualizedEl.textContent = "Rango invalido";
+        periodAnnualizedEl.classList.add("neg");
+        periodTotalRealEl.textContent = "Rango invalido";
+        periodTotalRealEl.classList.add("neg");
+        periodTotalNetAfterTaxEl.textContent = "Rango invalido";
+        periodTotalNetAfterTaxEl.classList.add("neg");
+        statusEl.textContent = "El periodo es invalido: la fecha de inicio es mayor a la fecha de fin.";
+        return;
+      }
+
+      const range = rows.filter(r => {
+        const key = ymKey(r.year, r.month);
+        return key >= startKey && key <= endKey;
+      });
+
+      if (range.length < 2) {
+        periodAnnualizedEl.textContent = "Sin dato";
+        periodAnnualizedEl.classList.remove("neg");
+        periodTotalRealEl.textContent = "Sin dato";
+        periodTotalRealEl.classList.remove("neg");
+        periodTotalNetAfterTaxEl.textContent = "Sin dato";
+        periodTotalNetAfterTaxEl.classList.remove("neg");
+        statusEl.textContent = "No hay datos suficientes en el rango seleccionado (se requieren al menos 2 meses).";
+        return;
+      }
+
+      const startQuota = Number(range[0].quota);
+      const endQuota = Number(range[range.length - 1].quota);
+      const months = range.length - 1;
+
+      if (months <= 0 || Number.isNaN(startQuota) || Number.isNaN(endQuota) || startQuota <= 0 || endQuota <= 0) {
+        periodAnnualizedEl.textContent = "Sin dato";
+        periodAnnualizedEl.classList.remove("neg");
+        periodTotalRealEl.textContent = "Sin dato";
+        periodTotalRealEl.classList.remove("neg");
+        periodTotalNetAfterTaxEl.textContent = "Sin dato";
+        periodTotalNetAfterTaxEl.classList.remove("neg");
+        statusEl.textContent = "No se pudo calcular la rentabilidad anualizada del rango seleccionado.";
+        return;
+      }
+
+      const annualized = (Math.pow(endQuota / startQuota, 12 / months) - 1) * 100;
+      const totalReal = ((endQuota / startQuota) - 1) * 100;
+      const taxableGainPct = Math.max(totalReal, 0);
+      const netAfterTax = totalReal - (taxableGainPct * 0.05);
+      periodAnnualizedEl.textContent = `${annualized.toFixed(2)}%`;
+      periodTotalRealEl.textContent = `${totalReal.toFixed(2)}%`;
+      periodTotalNetAfterTaxEl.textContent = `${netAfterTax.toFixed(2)}%`;
+      colorize(periodAnnualizedEl, annualized);
+      colorize(periodTotalRealEl, totalReal);
+      colorize(periodTotalNetAfterTaxEl, netAfterTax);
+      statusEl.textContent = `Rango calculado: ${monthNames[sm]} ${sy} a ${monthNames[em]} ${ey} (${months} meses efectivos).`;
+    }
+
+    function renderBarsLast5Years() {
+      const integraValid = rows
+        .map(r => ({
+          ...r,
+          teaPct: Number(r.teaPct),
+          key: ymKey(r.year, r.month)
+        }))
+        .filter(r => !Number.isNaN(r.teaPct))
+        .sort((a, b) => a.key - b.key);
+
+      const habitatValid = habitatRows
+        .map(r => ({
+          ...r,
+          teaPct: Number(r.teaPct),
+          key: ymKey(r.year, r.month)
+        }))
+        .filter(r => !Number.isNaN(r.teaPct))
+        .sort((a, b) => a.key - b.key);
+
+      const keys = Array.from(new Set([
+        ...integraValid.map(d => d.key),
+        ...habitatValid.map(d => d.key)
+      ])).sort((a, b) => a - b);
+
+      const last60Keys = keys.slice(-60);
+      const integraMap = new Map(integraValid.map(d => [d.key, d]));
+      const habitatMap = new Map(habitatValid.map(d => [d.key, d]));
+      const last60 = last60Keys.map(k => ({ key: k, integra: integraMap.get(k), habitat: habitatMap.get(k) }));
+
+      if (!last60.length) {
+        barsChart.innerHTML = "";
+        return;
+      }
+
+      const w = 900;
+      const h = 320;
+      const m = { top: 20, right: 16, bottom: 44, left: 52 };
+      const cw = w - m.left - m.right;
+      const ch = h - m.top - m.bottom;
+
+      const values = last60.flatMap(d => [d.integra?.teaPct, d.habitat?.teaPct]).filter(v => typeof v === "number");
+      const vMin = Math.min(0, ...values);
+      const vMax = Math.max(0, ...values);
+      const pad = Math.max(1, (vMax - vMin) * 0.08);
+      const minY = vMin - pad;
+      const maxY = vMax + pad;
+
+      const yScale = v => m.top + ((maxY - v) / (maxY - minY)) * ch;
+      const xStep = cw / last60.length;
+      const groupW = Math.max(8, xStep * 0.8);
+      const barW = Math.max(3, groupW / 2.2);
+      const zeroY = yScale(0);
+
+      const ticks = 5;
+      let svg = "";
+
+      for (let i = 0; i <= ticks; i++) {
+        const v = minY + ((maxY - minY) * i / ticks);
+        const y = yScale(v);
+        svg += `<line class="gridLine" x1="${m.left}" y1="${y.toFixed(2)}" x2="${(w - m.right)}" y2="${y.toFixed(2)}"></line>`;
+        svg += `<text class="axisText" x="8" y="${(y + 3).toFixed(2)}">${v.toFixed(1)}%</text>`;
+      }
+
+      svg += `<line x1="${m.left}" y1="${zeroY.toFixed(2)}" x2="${(w - m.right)}" y2="${zeroY.toFixed(2)}" stroke="#94a3b8" stroke-width="1.2"></line>`;
+
+      for (let i = 0; i < last60.length; i++) {
+        const d = last60[i];
+        const year = String(d.key).slice(0, 4);
+        const month = String(d.key).slice(4, 6);
+        const xBase = m.left + (i * xStep) + ((xStep - groupW) / 2);
+        const series = [
+          { data: d.integra, style: FUND_STYLES.integra, x: xBase },
+          { data: d.habitat, style: FUND_STYLES.habitat, x: xBase + barW + 2 }
+        ];
+
+        for (const s of series) {
+          if (!s.data) continue;
+          const y = yScale(Math.max(0, s.data.teaPct));
+          const yNeg = yScale(Math.min(0, s.data.teaPct));
+          const bh = Math.abs(yNeg - y);
+          const color = s.data.teaPct >= 0 ? s.style.positive : s.style.negative;
+          const label = `${s.style.name} - ${monthNames[month]} ${year}: ${s.data.teaPct.toFixed(2)}% (TEA mensual)`;
+          const textY = s.data.teaPct >= 0 ? (Math.min(y, yNeg) - 4) : (Math.max(y, yNeg) + 11);
+
+          svg += `<rect x="${s.x.toFixed(2)}" y="${Math.min(y, yNeg).toFixed(2)}" width="${barW.toFixed(2)}" height="${Math.max(1, bh).toFixed(2)}" fill="${color}" opacity="0.9"><title>${label}</title></rect>`;
+          svg += `<text class="barValue" x="${(s.x + barW / 2).toFixed(2)}" y="${textY.toFixed(2)}" text-anchor="middle">${s.data.teaPct.toFixed(1)}%</text>`;
+        }
+
+        if (month === "01") {
+          svg += `<text class="axisText" x="${(xBase + groupW / 2).toFixed(2)}" y="${(h - 10).toFixed(2)}" text-anchor="middle">${year}</text>`;
+        }
+      }
+
+      barsChart.innerHTML = renderLegend(svg, w, [
+        { name: FUND_STYLES.integra.name, color: FUND_STYLES.integra.positive },
+        { name: FUND_STYLES.habitat.name, color: FUND_STYLES.habitat.positive }
+      ]);
+    }
+
+    function renderAnnualBarsByYear() {
+      const buckets = new Map();
+
+      function buildAnnual(sourceRows) {
+        const localBuckets = new Map();
+
+        for (const r of sourceRows) {
+          const rMes = Number(r.monthlyReturn);
+          if (Number.isNaN(rMes)) continue;
+
+          if (!localBuckets.has(r.year)) {
+            localBuckets.set(r.year, { factor: 1, months: 0 });
+          }
+
+          const y = localBuckets.get(r.year);
+          y.factor *= (1 + rMes);
+          y.months += 1;
+        }
+
+        return Array.from(localBuckets.entries())
+          .map(([year, d]) => {
+            const annualPct = d.months === 12
+              ? (d.factor - 1) * 100
+              : (Math.pow(d.factor, 12 / d.months) - 1) * 100;
+            return { year, value: annualPct, months: d.months };
+          })
+          .sort((a, b) => Number(a.year) - Number(b.year));
+      }
+
+      const annualIntegra = buildAnnual(rows);
+      const annualHabitat = buildAnnual(habitatRows);
+
+      const yearKeys = Array.from(new Set([
+        ...annualIntegra.map(d => d.year),
+        ...annualHabitat.map(d => d.year)
+      ])).sort((a, b) => Number(a) - Number(b));
+
+      const integraMap = new Map(annualIntegra.map(d => [d.year, d]));
+      const habitatMap = new Map(annualHabitat.map(d => [d.year, d]));
+
+      const annual = yearKeys.map(year => ({
+        year,
+        integra: integraMap.get(year),
+        habitat: habitatMap.get(year)
+      }))
+        .filter(d => Number(d.year) >= 2005)
+        .sort((a, b) => Number(a.year) - Number(b.year));
+
+      if (!annual.length) {
+        annualBarsChart.innerHTML = "";
+        return;
+      }
+
+      const w = 900;
+      const h = 320;
+      const m = { top: 20, right: 16, bottom: 44, left: 52 };
+      const cw = w - m.left - m.right;
+      const ch = h - m.top - m.bottom;
+
+      const values = annual.flatMap(d => [d.integra?.value, d.habitat?.value]).filter(v => typeof v === "number");
+      const vMin = Math.min(0, ...values);
+      const vMax = Math.max(0, ...values);
+      const pad = Math.max(1, (vMax - vMin) * 0.08);
+      const minY = vMin - pad;
+      const maxY = vMax + pad;
+
+      const yScale = v => m.top + ((maxY - v) / (maxY - minY)) * ch;
+      const xStep = cw / annual.length;
+      const groupW = Math.max(12, xStep * 0.8);
+      const barW = Math.max(6, groupW / 2.25);
+      const zeroY = yScale(0);
+
+      const ticks = 5;
+      let svg = "";
+
+      for (let i = 0; i <= ticks; i++) {
+        const v = minY + ((maxY - minY) * i / ticks);
+        const y = yScale(v);
+        svg += `<line class="gridLine" x1="${m.left}" y1="${y.toFixed(2)}" x2="${(w - m.right)}" y2="${y.toFixed(2)}"></line>`;
+        svg += `<text class="axisText" x="8" y="${(y + 3).toFixed(2)}">${v.toFixed(1)}%</text>`;
+      }
+
+      svg += `<line x1="${m.left}" y1="${zeroY.toFixed(2)}" x2="${(w - m.right)}" y2="${zeroY.toFixed(2)}" stroke="#94a3b8" stroke-width="1.2"></line>`;
+
+      const labelStep = annual.length > 24 ? 2 : 1;
+
+      for (let i = 0; i < annual.length; i++) {
+        const d = annual[i];
+        const xBase = m.left + (i * xStep) + ((xStep - groupW) / 2);
+        const series = [
+          { data: d.integra, style: FUND_STYLES.integra, x: xBase },
+          { data: d.habitat, style: FUND_STYLES.habitat, x: xBase + barW + 2 }
+        ];
+
+        for (const s of series) {
+          if (!s.data) continue;
+          const y = yScale(Math.max(0, s.data.value));
+          const yNeg = yScale(Math.min(0, s.data.value));
+          const bh = Math.abs(yNeg - y);
+          const color = s.data.value >= 0 ? s.style.positive : s.style.negative;
+          const label = `${s.style.name} ${d.year}: ${s.data.value.toFixed(2)}% (${s.data.months} meses)`;
+          const textY = s.data.value >= 0 ? (Math.min(y, yNeg) - 5) : (Math.max(y, yNeg) + 12);
+
+          svg += `<rect x="${s.x.toFixed(2)}" y="${Math.min(y, yNeg).toFixed(2)}" width="${barW.toFixed(2)}" height="${Math.max(1, bh).toFixed(2)}" fill="${color}" opacity="0.9"><title>${label}</title></rect>`;
+          svg += `<text class="barValue" x="${(s.x + barW / 2).toFixed(2)}" y="${textY.toFixed(2)}" text-anchor="middle">${s.data.value.toFixed(1)}%</text>`;
+        }
+
+        if (i % labelStep === 0) {
+          svg += `<text class="axisText" x="${(xBase + groupW / 2).toFixed(2)}" y="${(h - 10).toFixed(2)}" text-anchor="middle">${d.year}</text>`;
+        }
+      }
+
+      annualBarsChart.innerHTML = renderLegend(svg, w, [
+        { name: FUND_STYLES.integra.name, color: FUND_STYLES.integra.positive },
+        { name: FUND_STYLES.habitat.name, color: FUND_STYLES.habitat.positive }
+      ]);
+    }
+
+    function renderBarsLast12Months() {
+      const integraValid = rows
+        .map(r => ({
+          ...r,
+          teaPct: Number(r.teaPct),
+          key: ymKey(r.year, r.month)
+        }))
+        .filter(r => !Number.isNaN(r.teaPct))
+        .sort((a, b) => a.key - b.key);
+
+      const habitatValid = habitatRows
+        .map(r => ({
+          ...r,
+          teaPct: Number(r.teaPct),
+          key: ymKey(r.year, r.month)
+        }))
+        .filter(r => !Number.isNaN(r.teaPct))
+        .sort((a, b) => a.key - b.key);
+
+      const keys = Array.from(new Set([
+        ...integraValid.map(d => d.key),
+        ...habitatValid.map(d => d.key)
+      ])).sort((a, b) => a - b);
+
+      const last12Keys = keys.slice(-12);
+      const integraMap = new Map(integraValid.map(d => [d.key, d]));
+      const habitatMap = new Map(habitatValid.map(d => [d.key, d]));
+      const last12 = last12Keys.map(k => ({ key: k, integra: integraMap.get(k), habitat: habitatMap.get(k) }));
+
+      if (!last12.length) {
+        last12BarsChart.innerHTML = "";
+        return;
+      }
+
+      const w = 900;
+      const h = 320;
+      const m = { top: 20, right: 16, bottom: 44, left: 52 };
+      const cw = w - m.left - m.right;
+      const ch = h - m.top - m.bottom;
+
+      const values = last12.flatMap(d => [d.integra?.teaPct, d.habitat?.teaPct]).filter(v => typeof v === "number");
+      const vMin = Math.min(0, ...values);
+      const vMax = Math.max(0, ...values);
+      const pad = Math.max(1, (vMax - vMin) * 0.08);
+      const minY = vMin - pad;
+      const maxY = vMax + pad;
+
+      const yScale = v => m.top + ((maxY - v) / (maxY - minY)) * ch;
+      const xStep = cw / last12.length;
+      const groupW = Math.max(28, xStep * 0.8);
+      const barW = Math.max(12, groupW / 2.2);
+      const zeroY = yScale(0);
+
+      const ticks = 5;
+      let svg = "";
+
+      for (let i = 0; i <= ticks; i++) {
+        const v = minY + ((maxY - minY) * i / ticks);
+        const y = yScale(v);
+        svg += `<line class="gridLine" x1="${m.left}" y1="${y.toFixed(2)}" x2="${(w - m.right)}" y2="${y.toFixed(2)}"></line>`;
+        svg += `<text class="axisText" x="8" y="${(y + 3).toFixed(2)}">${v.toFixed(1)}%</text>`;
+      }
+
+      svg += `<line x1="${m.left}" y1="${zeroY.toFixed(2)}" x2="${(w - m.right)}" y2="${zeroY.toFixed(2)}" stroke="#94a3b8" stroke-width="1.2"></line>`;
+
+      for (let i = 0; i < last12.length; i++) {
+        const d = last12[i];
+        const year = String(d.key).slice(0, 4);
+        const month = String(d.key).slice(4, 6);
+        const xBase = m.left + (i * xStep) + ((xStep - groupW) / 2);
+        const series = [
+          { data: d.integra, style: FUND_STYLES.integra, x: xBase },
+          { data: d.habitat, style: FUND_STYLES.habitat, x: xBase + barW + 2 }
+        ];
+
+        for (const s of series) {
+          if (!s.data) continue;
+          const y = yScale(Math.max(0, s.data.teaPct));
+          const yNeg = yScale(Math.min(0, s.data.teaPct));
+          const bh = Math.abs(yNeg - y);
+          const color = s.data.teaPct >= 0 ? s.style.positive : s.style.negative;
+          const label = `${s.style.name} - ${monthNames[month]} ${year}: ${s.data.teaPct.toFixed(2)}% (TEA mensual)`;
+          const textY = s.data.teaPct >= 0 ? (Math.min(y, yNeg) - 5) : (Math.max(y, yNeg) + 12);
+
+          svg += `<rect x="${s.x.toFixed(2)}" y="${Math.min(y, yNeg).toFixed(2)}" width="${barW.toFixed(2)}" height="${Math.max(1, bh).toFixed(2)}" fill="${color}" opacity="0.9"><title>${label}</title></rect>`;
+          svg += `<text class="barValue" x="${(s.x + barW / 2).toFixed(2)}" y="${textY.toFixed(2)}" text-anchor="middle">${s.data.teaPct.toFixed(1)}%</text>`;
+        }
+
+        svg += `<text class="axisText" x="${(xBase + groupW / 2).toFixed(2)}" y="${(h - 10).toFixed(2)}" text-anchor="middle">${month}/${String(year).slice(-2)}</text>`;
+      }
+
+      last12BarsChart.innerHTML = renderLegend(svg, w, [
+        { name: FUND_STYLES.integra.name, color: FUND_STYLES.integra.positive },
+        { name: FUND_STYLES.habitat.name, color: FUND_STYLES.habitat.positive }
+      ]);
+    }
+
+    function buildMonthlyFromDailyCsv(text) {
+      const daily = parseCsv(text).map(r => {
+        const fechaRaw = (r.fecha || "").trim();
+        const valorRaw = (r.valor_cuota || "").trim();
+        const [dd, mm, yyyy] = fechaRaw.split("/");
+        const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+
+        return {
+          date,
+          dateKey: Number(`${yyyy}${(mm || "").padStart(2, "0")}${(dd || "").padStart(2, "0")}`),
+          month: (mm || "").padStart(2, "0"),
+          year: (yyyy || "").trim(),
+          quota: Number(valorRaw)
+        };
+      }).filter(r => r.year && r.month && !Number.isNaN(r.quota) && !Number.isNaN(r.date.getTime()));
+
+      const monthEndMap = new Map();
+      for (const d of daily) {
+        const key = `${d.year}-${d.month}`;
+        const curr = monthEndMap.get(key);
+        if (!curr || d.dateKey > curr.dateKey) {
+          monthEndMap.set(key, d);
+        }
+      }
+
+      const monthEnd = Array.from(monthEndMap.values())
+        .sort((a, b) => a.dateKey - b.dateKey);
+
+      const monthly = [];
+      for (let i = 1; i < monthEnd.length; i++) {
+        const prev = monthEnd[i - 1];
+        const curr = monthEnd[i];
+        if (prev.quota <= 0 || curr.quota <= 0) continue;
+
+        const monthlyReturn = (curr.quota / prev.quota) - 1;
+        const tea = (Math.pow(1 + monthlyReturn, 12) - 1) * 100;
+
+        monthly.push({
+          year: curr.year,
+          month: curr.month,
+          quota: curr.quota,
+          monthlyReturn,
+          teaPct: tea
+        });
+      }
+
+      return monthly;
+    }
+
+    async function init() {
+      try {
+        const [resIntegra, resHabitat] = await Promise.all([
+          fetch(CSV_PATH_INTEGRA),
+          fetch(CSV_PATH_HABITAT)
+        ]);
+
+        if (!resIntegra.ok || !resHabitat.ok) {
+          throw new Error(`No se pudo leer uno de los CSV (Integra: ${resIntegra.status}, Habitat: ${resHabitat.status}).`);
+        }
+
+        const [textIntegra, textHabitat] = await Promise.all([
+          resIntegra.text(),
+          resHabitat.text()
+        ]);
+
+        rows = buildMonthlyFromDailyCsv(textIntegra);
+        habitatRows = buildMonthlyFromDailyCsv(textHabitat);
+
+        buildFilters(rows);
+        renderPeriodAnnualized();
+        renderBarsLast5Years();
+        renderBarsLast12Months();
+        renderAnnualBarsByYear();
+
+        startMonthSelect.addEventListener("change", renderPeriodAnnualized);
+        startYearSelect.addEventListener("change", renderPeriodAnnualized);
+        endMonthSelect.addEventListener("change", renderPeriodAnnualized);
+        endYearSelect.addEventListener("change", renderPeriodAnnualized);
+      } catch (err) {
+        statusEl.textContent = "Error al cargar datos. Abre este HTML en un servidor local o en VS Code Live Preview.";
+        console.error(err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
