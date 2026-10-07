@@ -440,34 +440,36 @@
         return key >= startKey && key <= endKey;
       });
 
-      if (range.length < 2) {
+      if (range.length < 1) {
         periodAnnualizedEl.textContent = "Sin dato";
         periodAnnualizedEl.classList.remove("neg");
         periodTotalRealEl.textContent = "Sin dato";
         periodTotalRealEl.classList.remove("neg");
         periodTotalNetAfterTaxEl.textContent = "Sin dato";
         periodTotalNetAfterTaxEl.classList.remove("neg");
-        statusEl.textContent = "No hay datos suficientes en el rango seleccionado (se requieren al menos 2 meses).";
+        statusEl.textContent = "No hay datos suficientes en el rango seleccionado.";
         return;
       }
 
-      const startQuota = Number(range[0].quota);
-      const endQuota = Number(range[range.length - 1].quota);
-      const months = range.length - 1;
+      const monthlyReturns = range
+        .map(r => Number(r.monthlyReturn))
+        .filter(r => !Number.isNaN(r));
+      const months = monthlyReturns.length;
 
-      if (months <= 0 || Number.isNaN(startQuota) || Number.isNaN(endQuota) || startQuota <= 0 || endQuota <= 0) {
+      if (months <= 0) {
         periodAnnualizedEl.textContent = "Sin dato";
         periodAnnualizedEl.classList.remove("neg");
         periodTotalRealEl.textContent = "Sin dato";
         periodTotalRealEl.classList.remove("neg");
         periodTotalNetAfterTaxEl.textContent = "Sin dato";
         periodTotalNetAfterTaxEl.classList.remove("neg");
-        statusEl.textContent = "No se pudo calcular la rentabilidad anualizada del rango seleccionado.";
+        statusEl.textContent = "No se pudo calcular la rentabilidad del rango seleccionado.";
         return;
       }
 
-      const annualized = (Math.pow(endQuota / startQuota, 12 / months) - 1) * 100;
-      const totalReal = ((endQuota / startQuota) - 1) * 100;
+      const growthFactor = monthlyReturns.reduce((acc, r) => acc * (1 + r), 1);
+      const totalReal = (growthFactor - 1) * 100;
+      const annualized = (Math.pow(growthFactor, 12 / months) - 1) * 100;
       const taxableGainPct = Math.max(totalReal, 0);
       const netAfterTax = totalReal - (taxableGainPct * 0.05);
       periodAnnualizedEl.textContent = `${annualized.toFixed(2)}%`;
