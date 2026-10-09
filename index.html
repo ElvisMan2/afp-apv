@@ -110,8 +110,9 @@
 
     .kpi {
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 1fr auto auto;
       align-items: center;
+      gap: 12px;
       border-bottom: 1px dashed #dbeafe;
       padding-bottom: 8px;
     }
@@ -130,10 +131,25 @@
       font-size: 1.2rem;
       font-weight: 700;
       color: var(--ok);
+      min-width: 90px;
+      text-align: right;
     }
 
     .kpi .value.neg {
       color: var(--warn);
+    }
+
+    .kpiHeader {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid #dbeafe;
+      padding-bottom: 8px;
     }
 
     .status {
@@ -246,17 +262,25 @@
       </div>
 
       <article class="result" id="resultBox" aria-live="polite">
+        <div class="kpiHeader">
+          <span>Indicador</span>
+          <span>Integra</span>
+          <span>Habitat</span>
+        </div>
         <div class="kpi">
           <span class="name">Rentabilidad anualizada estimada del periodo</span>
-          <span class="value" id="periodAnnualized">-</span>
+          <span class="value" id="periodAnnualizedIntegra">-</span>
+          <span class="value" id="periodAnnualizedHabitat">-</span>
         </div>
         <div class="kpi">
           <span class="name">Rentabilidad total real del periodo</span>
-          <span class="value" id="periodTotalReal">-</span>
+          <span class="value" id="periodTotalRealIntegra">-</span>
+          <span class="value" id="periodTotalRealHabitat">-</span>
         </div>
         <div class="kpi">
           <span class="name">Rentabilidad neta estimada al retirar (SUNAT 5% sobre ganancia)</span>
-          <span class="value" id="periodTotalNetAfterTax">-</span>
+          <span class="value" id="periodTotalNetAfterTaxIntegra">-</span>
+          <span class="value" id="periodTotalNetAfterTaxHabitat">-</span>
         </div>
       </article>
 
@@ -312,9 +336,18 @@
     const endYearSelect = document.getElementById("endYearSelect");
     const statusEl = document.getElementById("status");
 
-    const periodAnnualizedEl = document.getElementById("periodAnnualized");
-    const periodTotalRealEl = document.getElementById("periodTotalReal");
-    const periodTotalNetAfterTaxEl = document.getElementById("periodTotalNetAfterTax");
+    const periodEls = {
+      integra: {
+        annualized: document.getElementById("periodAnnualizedIntegra"),
+        totalReal: document.getElementById("periodTotalRealIntegra"),
+        netAfterTax: document.getElementById("periodTotalNetAfterTaxIntegra")
+      },
+      habitat: {
+        annualized: document.getElementById("periodAnnualizedHabitat"),
+        totalReal: document.getElementById("periodTotalRealHabitat"),
+        netAfterTax: document.getElementById("periodTotalNetAfterTaxHabitat")
+      }
+    };
     const barsChart = document.getElementById("barsChart");
     const last12BarsChart = document.getElementById("last12BarsChart");
     const annualBarsChart = document.getElementById("annualBarsChart");
@@ -398,6 +431,52 @@
       return Number(`${year}${month}`);
     }
 
+    function setPeriodOutput(targetEls, annualized, totalReal, netAfterTax) {
+      targetEls.annualized.textContent = `${annualized.toFixed(2)}%`;
+      targetEls.totalReal.textContent = `${totalReal.toFixed(2)}%`;
+      targetEls.netAfterTax.textContent = `${netAfterTax.toFixed(2)}%`;
+      colorize(targetEls.annualized, annualized);
+      colorize(targetEls.totalReal, totalReal);
+      colorize(targetEls.netAfterTax, netAfterTax);
+    }
+
+    function setPeriodNoData(targetEls) {
+      targetEls.annualized.textContent = "Sin dato";
+      targetEls.totalReal.textContent = "Sin dato";
+      targetEls.netAfterTax.textContent = "Sin dato";
+      targetEls.annualized.classList.remove("neg");
+      targetEls.totalReal.classList.remove("neg");
+      targetEls.netAfterTax.classList.remove("neg");
+    }
+
+    function computePeriodMetrics(sourceRows, startKey, endKey) {
+      const range = sourceRows.filter(r => {
+        const key = ymKey(r.year, r.month);
+        return key >= startKey && key <= endKey;
+      });
+
+      if (range.length < 1) {
+        return null;
+      }
+
+      const monthlyReturns = range
+        .map(r => Number(r.monthlyReturn))
+        .filter(r => !Number.isNaN(r));
+      const months = monthlyReturns.length;
+
+      if (months <= 0) {
+        return null;
+      }
+
+      const growthFactor = monthlyReturns.reduce((acc, r) => acc * (1 + r), 1);
+      const totalReal = (growthFactor - 1) * 100;
+      const annualized = (Math.pow(growthFactor, 12 / months) - 1) * 100;
+      const taxableGainPct = Math.max(totalReal, 0);
+      const netAfterTax = totalReal - (taxableGainPct * 0.05);
+
+      return { annualized, totalReal, netAfterTax, months };
+    }
+
     function renderLegend(svg, w, labels) {
       const startX = w - 260;
       const y = 16;
@@ -425,60 +504,54 @@
       const endKey = ymKey(ey, em);
 
       if (startKey > endKey) {
-        periodAnnualizedEl.textContent = "Rango invalido";
-        periodAnnualizedEl.classList.add("neg");
-        periodTotalRealEl.textContent = "Rango invalido";
-        periodTotalRealEl.classList.add("neg");
-        periodTotalNetAfterTaxEl.textContent = "Rango invalido";
-        periodTotalNetAfterTaxEl.classList.add("neg");
+        periodEls.integra.annualized.textContent = "Rango invalido";
+        periodEls.integra.totalReal.textContent = "Rango invalido";
+        periodEls.integra.netAfterTax.textContent = "Rango invalido";
+        periodEls.habitat.annualized.textContent = "Rango invalido";
+        periodEls.habitat.totalReal.textContent = "Rango invalido";
+        periodEls.habitat.netAfterTax.textContent = "Rango invalido";
+        periodEls.integra.annualized.classList.add("neg");
+        periodEls.integra.totalReal.classList.add("neg");
+        periodEls.integra.netAfterTax.classList.add("neg");
+        periodEls.habitat.annualized.classList.add("neg");
+        periodEls.habitat.totalReal.classList.add("neg");
+        periodEls.habitat.netAfterTax.classList.add("neg");
         statusEl.textContent = "El periodo es invalido: la fecha de inicio es mayor a la fecha de fin.";
         return;
       }
 
-      const range = rows.filter(r => {
-        const key = ymKey(r.year, r.month);
-        return key >= startKey && key <= endKey;
-      });
+      const integraMetrics = computePeriodMetrics(rows, startKey, endKey);
+      const habitatMetrics = computePeriodMetrics(habitatRows, startKey, endKey);
 
-      if (range.length < 1) {
-        periodAnnualizedEl.textContent = "Sin dato";
-        periodAnnualizedEl.classList.remove("neg");
-        periodTotalRealEl.textContent = "Sin dato";
-        periodTotalRealEl.classList.remove("neg");
-        periodTotalNetAfterTaxEl.textContent = "Sin dato";
-        periodTotalNetAfterTaxEl.classList.remove("neg");
-        statusEl.textContent = "No hay datos suficientes en el rango seleccionado.";
+      if (integraMetrics) {
+        setPeriodOutput(
+          periodEls.integra,
+          integraMetrics.annualized,
+          integraMetrics.totalReal,
+          integraMetrics.netAfterTax
+        );
+      } else {
+        setPeriodNoData(periodEls.integra);
+      }
+
+      if (habitatMetrics) {
+        setPeriodOutput(
+          periodEls.habitat,
+          habitatMetrics.annualized,
+          habitatMetrics.totalReal,
+          habitatMetrics.netAfterTax
+        );
+      } else {
+        setPeriodNoData(periodEls.habitat);
+      }
+
+      if (!integraMetrics && !habitatMetrics) {
+        statusEl.textContent = "No hay datos suficientes en el rango seleccionado para ambas AFP.";
         return;
       }
 
-      const monthlyReturns = range
-        .map(r => Number(r.monthlyReturn))
-        .filter(r => !Number.isNaN(r));
-      const months = monthlyReturns.length;
-
-      if (months <= 0) {
-        periodAnnualizedEl.textContent = "Sin dato";
-        periodAnnualizedEl.classList.remove("neg");
-        periodTotalRealEl.textContent = "Sin dato";
-        periodTotalRealEl.classList.remove("neg");
-        periodTotalNetAfterTaxEl.textContent = "Sin dato";
-        periodTotalNetAfterTaxEl.classList.remove("neg");
-        statusEl.textContent = "No se pudo calcular la rentabilidad del rango seleccionado.";
-        return;
-      }
-
-      const growthFactor = monthlyReturns.reduce((acc, r) => acc * (1 + r), 1);
-      const totalReal = (growthFactor - 1) * 100;
-      const annualized = (Math.pow(growthFactor, 12 / months) - 1) * 100;
-      const taxableGainPct = Math.max(totalReal, 0);
-      const netAfterTax = totalReal - (taxableGainPct * 0.05);
-      periodAnnualizedEl.textContent = `${annualized.toFixed(2)}%`;
-      periodTotalRealEl.textContent = `${totalReal.toFixed(2)}%`;
-      periodTotalNetAfterTaxEl.textContent = `${netAfterTax.toFixed(2)}%`;
-      colorize(periodAnnualizedEl, annualized);
-      colorize(periodTotalRealEl, totalReal);
-      colorize(periodTotalNetAfterTaxEl, netAfterTax);
-      statusEl.textContent = `Rango calculado: ${monthNames[sm]} ${sy} a ${monthNames[em]} ${ey} (${months} meses efectivos).`;
+      const monthsForStatus = integraMetrics?.months ?? habitatMetrics?.months ?? 0;
+      statusEl.textContent = `Rango calculado: ${monthNames[sm]} ${sy} a ${monthNames[em]} ${ey} (${monthsForStatus} meses efectivos).`;
     }
 
     function renderBarsLast5Years() {
